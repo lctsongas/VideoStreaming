@@ -154,10 +154,10 @@ class Client:
 			self.rtspSeq = 1
 			# Write the RTSP request to be sent.
 			# request = ...
-			
+			request = str(self.SETUP) + ' ' + self.fileName + ' RTSP/1.0\r\nCSeq: ' + str(self.rtspSeq) + '\r\nTransport: RTP/UDP; client_port= ' + str(self.rtpPort) 
 			# Keep track of the sent request.
 			# self.requestSent = ...
-		
+			self.requestSent = self.SETUP
 		# Play request
 		elif requestCode == self.PLAY and self.state == self.READY:
 			# Update RTSP sequence number.
@@ -168,7 +168,7 @@ class Client:
 			
 			# Keep track of the sent request.
 			# self.requestSent = ...
-		
+			request = 'NOT IMPLEMENTED'
 		# Pause request
 		elif requestCode == self.PAUSE and self.state == self.PLAYING:
 			# Update RTSP sequence number.
@@ -179,7 +179,7 @@ class Client:
 			
 			# Keep track of the sent request.
 			# self.requestSent = ...
-			
+			request = 'NOT IMPLEMENTED'
 		# Teardown request
 		elif requestCode == self.TEARDOWN and not self.state == self.INIT:
 			# Update RTSP sequence number.
@@ -187,7 +187,7 @@ class Client:
 			
 			# Write the RTSP request to be sent.
 			# request = ...
-			
+			request = 'NOT IMPLEMENTED'
 			# Keep track of the sent request.
 			# self.requestSent = ...
 		else:
@@ -195,7 +195,7 @@ class Client:
 		
 		# Send the RTSP request using rtspSocket.
 		# ...
-		
+		self.rtspSocket.send(request)
 		print '\nData sent:\n' + request
 	
 	def recvRtspReply(self):
@@ -233,19 +233,20 @@ class Client:
 						#-------------
 						# Update RTSP state.
 						# self.state = ...
-						
+						self.state = self.SETUP
 						# Open RTP port.
 						self.openRtpPort() 
 					elif self.requestSent == self.PLAY:
 						# self.state = ...
+						self.state = self.PLAY
 					elif self.requestSent == self.PAUSE:
 						# self.state = ...
-						
+						self.state = self.PAUSE
 						# The play thread exits. A new thread is created on resume.
 						self.playEvent.set()
 					elif self.requestSent == self.TEARDOWN:
 						# self.state = ...
-						
+						self.state = TEARDOWN
 						# Flag the teardownAcked to close the socket.
 						self.teardownAcked = 1 
 	
@@ -263,7 +264,7 @@ class Client:
 		try:
 			# Bind the socket to the address using the RTP port given by the client user
 			# ...
-			self.rtpSocket.bind(("", self.rtpport))
+			self.rtpSocket.bind(("", self.rtpPort))
 		except:
 			tkMessageBox.showwarning('Unable to Bind', 'Unable to bind PORT=%d' %self.rtpPort)
 

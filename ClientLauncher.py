@@ -8,7 +8,7 @@ if __name__ == "__main__":
 		# serverPort = sys.argv[2]
 		# rtpPort = sys.argv[3]
 		# fileName = sys.argv[4]
-		serverAddr = "127.0.0.1"
+		serverAddr = "192.168.0.10"
 		serverPort = 5060
 		rtpPort = 20480
 		fileName = "movie.Mjpeg"
