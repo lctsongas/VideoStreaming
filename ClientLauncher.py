@@ -10,7 +10,7 @@ if __name__ == "__main__":
 		# fileName = sys.argv[4]
 		serverAddr = "192.168.0.10"
 		serverPort = 5060
-		rtpPort = 20480
+		rtpPort = 65200
 		fileName = "movie.Mjpeg"
 	except:
 		print "[Usage: ClientLauncher.py Server_name Server_port RTP_port Video_file]\n"	

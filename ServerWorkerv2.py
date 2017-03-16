@@ -45,19 +45,14 @@ class ServerWorker:
 		request = data.split('\n')
 		line1 = request[0].split(' ')
 		requestType = line1[0]
-		
 		# Get the media file name
 		filename = line1[1]
-		
 		# Get the RTSP sequence number 
 		seq = request[1].split(' ')
-		
 		# Process SETUP request
 		if requestType == self.SETUP:
 			if self.state == self.INIT:
 				# Update state
-				print "processing SETUP\n"
-				
 				try:
 					self.clientInfo['videoStream'] = VideoStream(filename)
 					self.state = self.READY
@@ -72,11 +67,9 @@ class ServerWorker:
 				
 				# Get the RTP/UDP port from the last line
 				self.clientInfo['rtpPort'] = request[2].split(' ')[3]
-		
 		# Process PLAY request 		
 		elif requestType == self.PLAY:
 			if self.state == self.READY:
-				print "processing PLAY\n"
 				self.state = self.PLAYING
 				
 				# Create a new socket for RTP/UDP
@@ -92,7 +85,6 @@ class ServerWorker:
 		# Process PAUSE request
 		elif requestType == self.PAUSE:
 			if self.state == self.PLAYING:
-				print "processing PAUSE\n"
 				self.state = self.READY
 				
 				self.clientInfo['event'].set()
@@ -101,7 +93,6 @@ class ServerWorker:
 		
 		# Process TEARDOWN request
 		elif requestType == self.TEARDOWN:
-			print "processing TEARDOWN\n"
 
 			self.clientInfo['event'].set()
 			
@@ -114,7 +105,6 @@ class ServerWorker:
 		"""Send RTP packets over UDP."""
 		# counter=0;
 		# threshold = 10
-		
 		while True:
 			jit = math.floor(random.uniform(-13, 5.99))
 			jit = jit / 1000
@@ -145,6 +135,7 @@ class ServerWorker:
 					# traceback.print_exc(file=sys.stdout)
 					# print '-'*60
 
+
 	def makeRtp(self, payload, frameNbr):
 		"""RTP-packetize the video data."""
 		version = 2
@@ -159,7 +150,6 @@ class ServerWorker:
 		rtpPacket = RtpPacket()
 		
 		rtpPacket.encode(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload)
-		
 		return rtpPacket.getPacket()
 		
 	def replyRtsp(self, code, seq):
