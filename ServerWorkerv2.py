@@ -104,9 +104,10 @@ class ServerWorker:
 		# Process STOP request
 		elif requestType == self.STOP:
 			self.state = self.READY
+			# Restart video stream by reinitializing it
 			self.clientInfo['videoStream'] = VideoStream(filename)
 			self.clientInfo['event'].set()
-			frameNumber = 0
+			frameNumber = 0 # Reset the frame sent
 			self.replyRtsp(self.OK_200, seq[1])
 			
 	def sendRtp(self):
@@ -116,9 +117,10 @@ class ServerWorker:
 		while True:
 			jit = math.floor(random.uniform(-13, 5.99))
 			jit = jit / 1000
-			# self.clientInfo['event'].wait(0.05+jit) 
-			self.clientInfo['event'].wait(0.05)
 			jit = jit + 0.020
+			self.clientInfo['event'].wait(0.05+jit) 
+			# self.clientInfo['event'].wait(0.05)
+			
 			
 			# Stop sending if request is PAUSE or TEARDOWN
 			if self.clientInfo['event'].isSet(): 
