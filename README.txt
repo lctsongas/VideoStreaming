@@ -24,9 +24,10 @@ Instructions:
 		C) The server wait time did not timeout
 
 4) Begin tseting the implementation by running through the validation
-	scenario specified in the Socket-Prog-Video-Stream-Assignment.pdf (page 6).
+	scenario specified in the CE4390ExtensionValidation.pdf.
 
-5) Once finished, close the Client and stop the server process.
+5) Once finished, close the Client and stop the server process. To see the
+	statictics analysis, please refer to the StatiscticsAnalysis.pdf
 		
 	
 	

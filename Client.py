@@ -1,6 +1,7 @@
 from Tkinter import *
 import tkMessageBox
 from PIL import Image, ImageTk
+import time
 import socket, threading, sys, traceback, os
 
 from RtpPacket import RtpPacket
@@ -18,6 +19,7 @@ class Client:
 	PLAY = 1
 	PAUSE = 2
 	TEARDOWN = 3
+	STOP = 4
 	
 	# Initiation..
 	def __init__(self, master, serveraddr, serverport, rtpport, filename):
@@ -34,14 +36,18 @@ class Client:
 		self.teardownAcked = 0
 		self.connectToServer()
 		self.frameNbr = 0
+		self.expectedFrameNbr = 1
+		self.packetLoss = 0.0
+		self.dataRate = 0.0
+		self.avgJitter = 0.0
 		
 	def createWidgets(self):
 		"""Build GUI."""
 		# Create Setup button
-		self.setup = Button(self.master, width=20, padx=3, pady=3)
-		self.setup["text"] = "Setup"
-		self.setup["command"] = self.setupMovie
-		self.setup.grid(row=1, column=0, padx=2, pady=2)
+		#self.setup = Button(self.master, width=20, padx=3, pady=3)
+		#self.setup["text"] = "Setup"
+		#self.setup["command"] = self.setupMovie
+		#self.setup.grid(row=1, column=0, padx=2, pady=2)
 		
 		# Create Play button		
 		self.start = Button(self.master, width=20, padx=3, pady=3)
@@ -57,22 +63,28 @@ class Client:
 		
 		# Create Teardown button
 		self.teardown = Button(self.master, width=20, padx=3, pady=3)
-		self.teardown["text"] = "Teardown"
-		self.teardown["command"] =  self.exitClient
+		self.teardown["text"] = "Stop"
+		self.teardown["command"] =  self.stopMovie
 		self.teardown.grid(row=1, column=3, padx=2, pady=2)
 		
 		# Create a label to display the movie
 		self.label = Label(self.master, height=19)
+		self.label["text"] = "GATTACA (movie.Mjpeg)"
 		self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5) 
 	
 	def setupMovie(self):
 		"""Setup button handler."""
 		if self.state == self.INIT:
 			self.sendRtspRequest(self.SETUP)
+			
+
+	def stopMovie(self):
+		"""Stop button handler"""
+		self.sendRtspRequest(self.STOP)
 	
 	def exitClient(self):
 		"""Teardown button handler."""
-		self.sendRtspRequest(self.TEARDOWN)		
+		self.sendRtspRequest(self.TEARDOWN)
 		self.master.destroy() # Close the gui window
 		os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT) # Delete the cache image from video
 
@@ -85,16 +97,20 @@ class Client:
 		"""Play button handler."""
 		if self.state == self.READY:
 			# Create a new thread to listen for RTP packets
+			self.sendRtspRequest(self.PLAY)
 			threading.Thread(target=self.listenRtp).start()
 			self.playEvent = threading.Event()
 			self.playEvent.clear()
-			self.sendRtspRequest(self.PLAY)
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
 		while True:
 			try:
+				startTime = time.time()
 				data = self.rtpSocket.recv(20480)
+				elapsedTime = time.time() - startTime
+				self.dataRate = float(sys.getsizeof(data)) / elapsedTime
+				self.avgJitter = (elapsedTime + self.expectedFrameNbr*self.avgJitter) / (self.expectedFrameNbr+1)
 				if data:
 					rtpPacket = RtpPacket()
 					rtpPacket.decode(data)
@@ -103,8 +119,16 @@ class Client:
 					print "Current Seq Num: " + str(currFrameNbr)
 										
 					if currFrameNbr > self.frameNbr: # Discard the late packet
+						if currFrameNbr == self.expectedFrameNbr:
+							self.packetLoss = (0 + self.expectedFrameNbr*self.packetLoss) / (self.expectedFrameNbr + 1)
+						else:
+							self.packetLoss = (1 + self.expectedFrameNbr*self.packetLoss) / (self.expectedFrameNbr + 1)
 						self.frameNbr = currFrameNbr
+						self.expectedFrameNbr = self.frameNbr + 1
 						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+						print "Packet Loss: " + "{0:.2f}".format(self.packetLoss*100) + "%"
+						print "Date Rate: " + "{0:.2f}".format(self.dataRate/1024) + "KBps"
+						print "Jitter: " + "{0:.2f}".format(self.avgJitter*1000) + "ms"
 			except:
 				# Stop listening upon requesting PAUSE or TEARDOWN
 				if self.playEvent.isSet(): 
@@ -146,7 +170,7 @@ class Client:
 		# TO COMPLETE
 		#-------------
 		# Setup request
-		if requestCode == self.SETUP and self.state == self.INIT:
+		if self.state == self.INIT and not self.teardownAcked:
 			threading.Thread(target=self.recvRtspReply).start()
 			# Update RTSP sequence number.
 			# ...
@@ -190,6 +214,13 @@ class Client:
 			# Keep track of the sent request.
 			# self.requestSent = ...
 			self.requestSent = self.TEARDOWN
+		# Stop request
+		elif requestCode == self.STOP and not self.state == self.INIT:
+			request = 'STOP ' + self.fileName + ' RTSP/1.0\r\nCSeq: ' + str(self.rtspSeq) + '\r\nSession= ' + str(self.sessionId)
+			self.requestSent = self.STOP
+			self.frameNbr = 0
+			currFrameNbr = 0
+			self.rtpPacket = 0
 		else:
 			return
 		
@@ -247,7 +278,12 @@ class Client:
 						# self.state = ...
 						self.state = self.INIT
 						# Flag the teardownAcked to close the socket.
-						self.teardownAcked = 1 
+						self.teardownAcked = 1
+					elif self.requestSent == self.STOP:
+						self.state = self.READY
+						self.playEvent.set()
+						
+						
 	
 	def openRtpPort(self):
 		"""Open RTP socket binded to a specified port."""
